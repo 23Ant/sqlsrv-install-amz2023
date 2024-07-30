@@ -4,23 +4,9 @@
   become: yes
 
   tasks:
-    - name: Instalar dependências do ODBC
-      yum:
-        name: unixODBC-devel
-        state: present
 
     - name: Instalar sqlsrv e pdo_sqlsrv via PECL
       command: pecl install sqlsrv pdo_sqlsrv
-      ignore_errors: yes
-
-    - name: Verificar se o arquivo sql.h foi criado
-      command: find /usr -name sql.h
-      register: sql_h_result
-      ignore_errors: yes
-
-    - name: Verificar a versão do sqlsrv
-      command: sqlsrv --v
-      register: sqlsrv_version
       ignore_errors: yes
 
     - name: Instalar pacotes adicionais
