@@ -1,0 +1,75 @@
+---
+- name: Habilitar sqlsrv e pdo_sqlsrv no Amazon Linux
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Instalar dependências do ODBC
+      yum:
+        name: unixODBC-devel
+        state: present
+
+    - name: Instalar sqlsrv e pdo_sqlsrv via PECL
+      command: pecl install sqlsrv pdo_sqlsrv
+      ignore_errors: yes
+
+    - name: Verificar se o arquivo sql.h foi criado
+      command: find /usr -name sql.h
+      register: sql_h_result
+      ignore_errors: yes
+
+    - name: Verificar a versão do sqlsrv
+      command: sqlsrv --v
+      register: sqlsrv_version
+      ignore_errors: yes
+
+    - name: Instalar pacotes adicionais
+      yum:
+        name:
+          - php
+          - php-devel
+          - php-pear
+          - php-pdo
+          - php-xml
+          - unixODBC-devel
+          - gcc-c++
+          - gcc
+        state: present
+
+    - name: Verificar se o arquivo de configuração /etc/php.d/20-pdo.ini existe
+      stat:
+        path: /etc/php.d/20-pdo.ini
+      register: pdo_ini_file
+
+    - name: Criar o arquivo de configuração /etc/php.d/20-pdo.ini se não existir
+      file:
+        path: /etc/php.d/20-pdo.ini
+        state: touch
+      when: not pdo_ini_file.stat.exists
+
+    - name: Configurar extensões no arquivo /etc/php.d/20-pdo.ini
+      lineinfile:
+        path: /etc/php.d/20-pdo.ini
+        line: |
+          extension=sqlsrv.so
+          extension=pdo_sqlsrv.so
+        create: yes
+
+    - name: Reiniciar o serviço httpd
+      service:
+        name: httpd
+        state: restarted
+
+    - name: Reiniciar o serviço php-fpm
+      service:
+        name: php-fpm
+        state: restarted
+
+    - name: Verificar se os módulos sqlsrv estão carregados
+      command: php -m
+      register: php_modules
+      changed_when: false
+
+    - name: Exibir os módulos sqlsrv carregados
+      debug:
+        var: php_modules.stdout_lines | select('match', 'sqlsrv') | list
