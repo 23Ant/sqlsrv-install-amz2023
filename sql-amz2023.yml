@@ -5,12 +5,8 @@
 
   tasks:
 
-    - name: Instalar sqlsrv e pdo_sqlsrv via PECL
-      command: pecl install sqlsrv pdo_sqlsrv
-      ignore_errors: yes
-
     - name: Instalar pacotes adicionais
-      yum:
+      dnf:
         name:
           - php
           - php-devel
@@ -21,6 +17,10 @@
           - gcc-c++
           - gcc
         state: present
+
+    - name: Instalar sqlsrv e pdo_sqlsrv via PECL
+      command: pecl install sqlsrv pdo_sqlsrv
+      ignore_errors: yes
 
     - name: Verificar se o arquivo de configuração /etc/php.d/20-pdo.ini existe
       stat:
@@ -41,15 +41,29 @@
           extension=pdo_sqlsrv.so
         create: yes
 
-    - name: Reiniciar o serviço httpd
+    - name: Verificar se o serviço httpd está instalado
+      command: systemctl is-active httpd
+      register: httpd_status
+      failed_when: httpd_status.rc != 0 and httpd_status.rc != 3
+      changed_when: false
+
+    - name: Reiniciar o serviço httpd se estiver instalado
       service:
         name: httpd
         state: restarted
+      when: httpd_status.rc == 0
 
-    - name: Reiniciar o serviço php-fpm
+    - name: Verificar se o serviço php-fpm está instalado
+      command: systemctl is-active php-fpm
+      register: php_fpm_status
+      failed_when: php_fpm_status.rc != 0 and php_fpm_status.rc != 3
+      changed_when: false
+
+    - name: Reiniciar o serviço php-fpm se estiver instalado
       service:
         name: php-fpm
         state: restarted
+      when: php_fpm_status.rc == 0
 
     - name: Verificar se os módulos sqlsrv estão carregados
       command: php -m
@@ -59,4 +73,3 @@
     - name: Exibir os módulos sqlsrv carregados
       debug:
         var: php_modules.stdout_lines | select('match', 'sqlsrv') | list
-
