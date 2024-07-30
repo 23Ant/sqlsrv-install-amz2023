@@ -73,3 +73,4 @@
     - name: Exibir os módulos sqlsrv carregados
       debug:
         var: php_modules.stdout_lines | select('match', 'sqlsrv') | list
+
